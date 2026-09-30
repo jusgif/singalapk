@@ -1,46 +1,112 @@
 package com.signalmeter
 
-import android.app.*
+import android.Manifest
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.Service
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.IBinder
-import android.telephony.*
+import android.telephony.CellSignalStrengthLte
+import android.telephony.CellSignalStrengthNr
+import android.telephony.SignalStrength
+import android.telephony.TelephonyCallback
+import android.telephony.TelephonyManager
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import java.util.concurrent.Executor
 
 class SignalMonitorService : Service() {
-    private lateinit var tm: TelephonyManager
+    private lateinit var telephonyManager: TelephonyManager
     private lateinit var executor: Executor
+
     private val callback = object : TelephonyCallback(), TelephonyCallback.SignalStrengthsListener {
-        override fun onSignalStrengthsChanged(signalStrength: SignalStrength) { update(signalStrength) }
+        override fun onSignalStrengthsChanged(signalStrength: SignalStrength) {
+            update(signalStrength)
+        }
     }
+
     override fun onCreate() {
         super.onCreate()
-        getSystemService(NotificationManager::class.java).createNotificationChannel(
-            NotificationChannel("signal", "Signal Meter", NotificationManager.IMPORTANCE_LOW)
+
+        val notificationManager = getSystemService(NotificationManager::class.java)
+        notificationManager.createNotificationChannel(
+            NotificationChannel(
+                CHANNEL_ID,
+                "Signal Meter",
+                NotificationManager.IMPORTANCE_LOW
+            )
         )
-        tm = getSystemService(TelephonyManager::class.java)
+
+        telephonyManager = getSystemService(TelephonyManager::class.java)
         executor = mainExecutor
-        startForeground(1001, notification("Waiting for signal…"))
-        tm.registerTelephonyCallback(executor, callback)
+
+        startForeground(NOTIFICATION_ID, notification("Waiting for signal…"))
+
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
+            stopSelf()
+            return
+        }
+
+        try {
+            telephonyManager.registerTelephonyCallback(executor, callback)
+        } catch (_: SecurityException) {
+            stopSelf()
+        }
     }
-    private fun update(s: SignalStrength) {
+
+    private fun update(signalStrength: SignalStrength) {
         var value: Int? = null
-        var tech = "CELL"
-        for (cs in s.cellSignalStrengths) {
-            if (cs is CellSignalStrengthNr && cs.ssRsrp != CellSignalStrengthNr.UNAVAILABLE) {
-                value = cs.ssRsrp; tech = "5G"; break
-            }
-            if (cs is CellSignalStrengthLte && cs.rsrp != CellSignalStrengthLte.UNAVAILABLE) {
-                value = cs.rsrp; tech = "LTE"
+        var technology = "CELL"
+
+        for (cellSignalStrength in signalStrength.cellSignalStrengths) {
+            when (cellSignalStrength) {
+                is CellSignalStrengthNr -> {
+                    if (cellSignalStrength.ssRsrp != CellSignalStrengthNr.UNAVAILABLE) {
+                        value = cellSignalStrength.ssRsrp
+                        technology = "5G"
+                        break
+                    }
+                }
+                is CellSignalStrengthLte -> {
+                    if (cellSignalStrength.rsrp != CellSignalStrengthLte.UNAVAILABLE) {
+                        value = cellSignalStrength.rsrp
+                        technology = "LTE"
+                    }
+                }
             }
         }
-        val text = if (value != null) "$tech  $value dBm" else "Signal unavailable"
-        getSystemService(NotificationManager::class.java).notify(1001, notification(text))
+
+        val text = if (value != null) "$technology  $value dBm" else "Signal unavailable"
+        getSystemService(NotificationManager::class.java)
+            .notify(NOTIFICATION_ID, notification(text))
     }
+
     private fun notification(text: String): Notification =
-        NotificationCompat.Builder(this, "signal")
-            .setSmallIcon(R.drawable.ic_signal).setContentTitle("SignalMeter")
-            .setContentText(text).setOngoing(true).setOnlyAlertOnce(true).build()
-    override fun onDestroy() { tm.unregisterTelephonyCallback(callback); super.onDestroy() }
+        NotificationCompat.Builder(this, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_signal)
+            .setContentTitle("SignalMeter")
+            .setContentText(text)
+            .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .setCategory(NotificationCompat.CATEGORY_SERVICE)
+            .build()
+
+    override fun onDestroy() {
+        try {
+            telephonyManager.unregisterTelephonyCallback(callback)
+        } catch (_: Exception) {
+        }
+        super.onDestroy()
+    }
+
     override fun onBind(intent: Intent?): IBinder? = null
+
+    companion object {
+        private const val CHANNEL_ID = "signal"
+        private const val NOTIFICATION_ID = 1001
+    }
 }

@@ -8,6 +8,7 @@ import android.app.Service
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.IBinder
+import android.telephony.CellSignalStrength
 import android.telephony.CellSignalStrengthLte
 import android.telephony.CellSignalStrengthNr
 import android.telephony.SignalStrength
@@ -65,14 +66,14 @@ class SignalMonitorService : Service() {
         for (cellSignalStrength in signalStrength.cellSignalStrengths) {
             when (cellSignalStrength) {
                 is CellSignalStrengthNr -> {
-                    if (cellSignalStrength.ssRsrp != CellSignalStrengthNr.SIGNAL_STRENGTH_NONE) {
+                    if (cellSignalStrength.ssRsrp != CellSignalStrength.UNAVAILABLE) {
                         value = cellSignalStrength.ssRsrp
                         technology = "5G"
                         break
                     }
                 }
                 is CellSignalStrengthLte -> {
-                    if (cellSignalStrength.rsrp != CellSignalStrengthLte.SIGNAL_STRENGTH_NONE) {
+                    if (cellSignalStrength.rsrp != CellSignalStrength.UNAVAILABLE) {
                         value = cellSignalStrength.rsrp
                         technology = "LTE"
                     }

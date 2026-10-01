@@ -7,6 +7,7 @@ import android.app.NotificationManager
 import android.app.Service
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Color
 import android.os.IBinder
 import android.telephony.CellInfo
 import android.telephony.CellSignalStrengthLte
@@ -43,7 +44,7 @@ class SignalMonitorService : Service() {
         telephonyManager = getSystemService(TelephonyManager::class.java)
         executor = mainExecutor
 
-        startForeground(NOTIFICATION_ID, notification("Waiting for signal…"))
+        startForeground(NOTIFICATION_ID, notification("Waiting for signal…", Color.GRAY))
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
             != PackageManager.PERMISSION_GRANTED
@@ -82,17 +83,27 @@ class SignalMonitorService : Service() {
         }
 
         val text = if (value != null) "$technology  $value dBm" else "Signal unavailable"
+        val signalColor = value?.let(::colorForRsrp) ?: Color.GRAY
         getSystemService(NotificationManager::class.java)
-            .notify(NOTIFICATION_ID, notification(text))
+            .notify(NOTIFICATION_ID, notification(text, signalColor))
     }
 
     private fun isValidSignal(signal: Int): Boolean {
         return signal != CellInfo.UNAVAILABLE && signal != Int.MAX_VALUE && signal in -200..0
     }
 
-    private fun notification(text: String): Notification =
+    private fun colorForRsrp(rsrp: Int): Int = when {
+        rsrp >= -85 -> Color.rgb(46, 204, 113)
+        rsrp >= -95 -> Color.rgb(139, 195, 74)
+        rsrp >= -105 -> Color.rgb(255, 193, 7)
+        rsrp >= -115 -> Color.rgb(255, 152, 0)
+        else -> Color.rgb(244, 67, 54)
+    }
+
+    private fun notification(text: String, color: Int): Notification =
         NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_signal)
+            .setColor(color)
             .setContentTitle("SignalMeter")
             .setContentText(text)
             .setOngoing(true)

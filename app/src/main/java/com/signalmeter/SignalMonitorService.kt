@@ -65,14 +65,14 @@ class SignalMonitorService : Service() {
         for (cellSignalStrength in signalStrength.cellSignalStrengths) {
             when (cellSignalStrength) {
                 is CellSignalStrengthNr -> {
-                    if (cellSignalStrength.ssRsrp != CellSignalStrengthNr.UNAVAILABLE) {
+                    if (cellSignalStrength.ssRsrp != CellSignalStrengthNr.SIGNAL_STRENGTH_NONE) {
                         value = cellSignalStrength.ssRsrp
                         technology = "5G"
                         break
                     }
                 }
                 is CellSignalStrengthLte -> {
-                    if (cellSignalStrength.rsrp != CellSignalStrengthLte.UNAVAILABLE) {
+                    if (cellSignalStrength.rsrp != CellSignalStrengthLte.SIGNAL_STRENGTH_NONE) {
                         value = cellSignalStrength.rsrp
                         technology = "LTE"
                     }

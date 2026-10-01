@@ -8,7 +8,7 @@ import android.app.Service
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.IBinder
-import android.telephony.CellSignalStrength
+import android.telephony.CellInfo
 import android.telephony.CellSignalStrengthLte
 import android.telephony.CellSignalStrengthNr
 import android.telephony.SignalStrength
@@ -66,14 +66,14 @@ class SignalMonitorService : Service() {
         for (cellSignalStrength in signalStrength.cellSignalStrengths) {
             when (cellSignalStrength) {
                 is CellSignalStrengthNr -> {
-                    if (cellSignalStrength.ssRsrp != CellSignalStrength.UNAVAILABLE) {
+                    if (isValidSignal(cellSignalStrength.ssRsrp)) {
                         value = cellSignalStrength.ssRsrp
                         technology = "5G"
                         break
                     }
                 }
                 is CellSignalStrengthLte -> {
-                    if (cellSignalStrength.rsrp != CellSignalStrength.UNAVAILABLE) {
+                    if (isValidSignal(cellSignalStrength.rsrp)) {
                         value = cellSignalStrength.rsrp
                         technology = "LTE"
                     }
@@ -84,6 +84,10 @@ class SignalMonitorService : Service() {
         val text = if (value != null) "$technology  $value dBm" else "Signal unavailable"
         getSystemService(NotificationManager::class.java)
             .notify(NOTIFICATION_ID, notification(text))
+    }
+
+    private fun isValidSignal(signal: Int): Boolean {
+        return signal != CellInfo.UNAVAILABLE && signal != Int.MAX_VALUE && signal in -200..0
     }
 
     private fun notification(text: String): Notification =

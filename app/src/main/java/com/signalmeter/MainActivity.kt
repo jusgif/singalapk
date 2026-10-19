@@ -158,7 +158,7 @@ class MainActivity : Activity() {
         super.onStart()
         val filter = IntentFilter(SignalMonitorService.ACTION_SIGNAL_UPDATE)
         if (Build.VERSION.SDK_INT >= 33) registerReceiver(signalReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
-        else @Suppress("DEPRECATION") registerReceiver(signalReceiver, filter)
+        else {\n            @Suppress("DEPRECATION")\n            registerReceiver(signalReceiver, filter)\n        }
         renderSavedSignal()
     }
 
